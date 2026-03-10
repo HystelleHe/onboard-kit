@@ -1,0 +1,220 @@
+<template>
+  <div class="guide-preview">
+    <div class="preview-header">
+      <el-button @click="goBack">返回</el-button>
+      <h2>{{ previewData?.guide.name }}</h2>
+      <div class="actions">
+        <el-button @click="startGuide" type="primary">开始引导</el-button>
+        <el-button @click="showCodeDialog">生成代码</el-button>
+      </div>
+    </div>
+
+    <div class="preview-content">
+      <div v-if="loading" class="loading">
+        <el-skeleton :rows="10" animated />
+      </div>
+      <iframe
+        v-else-if="previewData"
+        :src="previewData.guide.target_url"
+        ref="previewIframe"
+        frameborder="0"
+        class="preview-iframe"
+        @load="onIframeLoad"
+      />
+    </div>
+
+    <el-dialog
+      v-model="codeDialogVisible"
+      title="生成代码"
+      width="800px"
+    >
+      <el-tabs v-model="codeFormat">
+        <el-tab-pane label="HTML" name="html" />
+        <el-tab-pane label="JavaScript" name="js" />
+        <el-tab-pane label="NPM" name="npm" />
+      </el-tabs>
+
+      <div v-if="generatedCode" class="code-section">
+        <div class="code-header">
+          <h4>代码</h4>
+          <el-button size="small" @click="copyCode">复制</el-button>
+        </div>
+        <pre class="code-block">{{ generatedCode.code }}</pre>
+
+        <h4>使用说明</h4>
+        <pre class="instructions">{{ generatedCode.instructions }}</pre>
+      </div>
+
+      <div v-else class="loading">
+        <el-skeleton :rows="5" animated />
+      </div>
+    </el-dialog>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { ref, onMounted, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { pageApi } from '@/api'
+import type { PreviewData, CodeGenerationResponse } from '@/types'
+import { driver } from 'driver.js'
+import { ElMessage } from 'element-plus'
+
+const router = useRouter()
+const route = useRoute()
+
+const loading = ref(true)
+const previewData = ref<PreviewData | null>(null)
+const previewIframe = ref<HTMLIFrameElement>()
+const codeDialogVisible = ref(false)
+const codeFormat = ref('html')
+const generatedCode = ref<CodeGenerationResponse | null>(null)
+
+onMounted(async () => {
+  const guideId = Number(route.params.id)
+  await loadPreviewData(guideId)
+})
+
+const loadPreviewData = async (guideId: number) => {
+  loading.value = true
+  try {
+    const response = await pageApi.previewGuide(guideId)
+    previewData.value = response.data
+  } catch (error) {
+    console.error('Load preview error:', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+const onIframeLoad = () => {
+  // iframe加载完成后可以注入Driver.js
+  console.log('Iframe loaded')
+}
+
+const startGuide = () => {
+  if (!previewData.value) return
+
+  // 创建Driver.js实例
+  const driverObj = driver({
+    showProgress: true,
+    steps: previewData.value.steps
+  })
+
+  // 启动引导
+  driverObj.drive()
+}
+
+const goBack = () => {
+  router.back()
+}
+
+const showCodeDialog = async () => {
+  codeDialogVisible.value = true
+  await generateCode()
+}
+
+const generateCode = async () => {
+  const guideId = Number(route.params.id)
+  try {
+    const response = await pageApi.generateCode({
+      guide_id: guideId,
+      format: codeFormat.value as any
+    })
+    generatedCode.value = response.data
+  } catch (error) {
+    console.error('Generate code error:', error)
+  }
+}
+
+watch(codeFormat, () => {
+  if (codeDialogVisible.value) {
+    generateCode()
+  }
+})
+
+const copyCode = () => {
+  if (!generatedCode.value) return
+
+  navigator.clipboard.writeText(generatedCode.value.code)
+  ElMessage.success('代码已复制到剪贴板')
+}
+</script>
+
+<style scoped>
+.guide-preview {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.preview-header {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 20px;
+  border-bottom: 1px solid #e8e8e8;
+  background: #fff;
+}
+
+.preview-header h2 {
+  flex: 1;
+  margin: 0;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
+.preview-content {
+  flex: 1;
+  overflow: hidden;
+  background: #f5f7fa;
+  padding: 20px;
+}
+
+.loading {
+  padding: 20px;
+}
+
+.preview-iframe {
+  width: 100%;
+  height: 100%;
+  background: #fff;
+  border-radius: 4px;
+}
+
+.code-section {
+  margin-top: 20px;
+}
+
+.code-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.code-header h4 {
+  margin: 0;
+}
+
+.code-block,
+.instructions {
+  padding: 15px;
+  background: #f5f7fa;
+  border-radius: 4px;
+  overflow-x: auto;
+  font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 20px 0;
+}
+
+.instructions {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  white-space: pre-wrap;
+}
+</style>
