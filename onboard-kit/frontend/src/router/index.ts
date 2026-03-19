@@ -29,12 +29,12 @@ const routes: RouteRecordRaw[] = [
       {
         path: 'guide/new',
         name: 'GuideNew',
-        component: () => import('@/views/GuideEditor.vue')
+        component: () => import('@/views/GuideEditorV2.vue')
       },
       {
         path: 'guide/:id',
         name: 'GuideEdit',
-        component: () => import('@/views/GuideEditor.vue')
+        component: () => import('@/views/GuideEditorV2.vue')
       },
       {
         path: 'preview/:id',
@@ -46,7 +46,7 @@ const routes: RouteRecordRaw[] = [
 ]
 
 const router = createRouter({
-  history: createWebHistory(import.meta.env.BASE_URL),
+  history: createWebHistory(),
   routes
 })
 

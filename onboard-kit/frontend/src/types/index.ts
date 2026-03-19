@@ -27,6 +27,28 @@ export interface Token {
   token_type: string
 }
 
+// V2: 截图区域类型
+export interface ScreenshotRegion {
+  x: number
+  y: number
+  width: number
+  height: number
+  element_type: string
+  selector: string
+  title: string
+  confidence: number
+  is_added?: boolean
+}
+
+// V2: 截图分析响应
+export interface ScreenshotAnalysisResponse {
+  screenshot: string // base64 data URL
+  width: number
+  height: number
+  suggested_regions: ScreenshotRegion[]
+  url: string
+}
+
 // 引导配置相关类型
 export interface Step {
   id?: number
@@ -37,6 +59,14 @@ export interface Step {
   element_selector: string
   position: 'top' | 'bottom' | 'left' | 'right'
   config?: Record<string, any>
+  // V2: 截图坐标支持
+  screenshot_region?: {
+    x: number
+    y: number
+    width: number
+    height: number
+  }
+  is_manual_selection?: boolean
   created_at?: string
 }
 
@@ -50,7 +80,7 @@ export interface Guide {
   owner_id?: number
   created_at?: string
   updated_at?: string
-  steps?: Step[]
+  steps: Step[]
 }
 
 export interface GuideCreate {
@@ -61,7 +91,7 @@ export interface GuideCreate {
   steps?: Omit<Step, 'id' | 'guide_id' | 'created_at'>[]
 }
 
-// 页面分析相关类型
+// 页面分析相关类型 (V1)
 export interface PageAnalysisRequest {
   url: string
 }
@@ -86,6 +116,12 @@ export interface PageAnalysisResponse {
   }
   suggested_elements?: SuggestedElement[]
   created_at: string
+}
+
+// V2: 截图分析请求
+export interface ScreenshotAnalysisRequest {
+  url: string
+  guide_id?: number
 }
 
 // 代码生成相关类型

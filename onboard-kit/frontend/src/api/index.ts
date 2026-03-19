@@ -8,6 +8,8 @@ import type {
   GuideCreate,
   PageAnalysisRequest,
   PageAnalysisResponse,
+  ScreenshotAnalysisRequest,
+  ScreenshotAnalysisResponse,
   CodeGenerationRequest,
   CodeGenerationResponse,
   PreviewData
@@ -57,7 +59,7 @@ export const guideApi = {
     apiClient.delete(`/guides/${guideId}`)
 }
 
-// 页面分析 API
+// 页面分析 API (V1)
 export const pageApi = {
   analyzePage: (request: PageAnalysisRequest) =>
     apiClient.post<PageAnalysisResponse>('/pages/analyze', request),
@@ -67,4 +69,16 @@ export const pageApi = {
 
   previewGuide: (guideId: number) =>
     apiClient.get<PreviewData>(`/pages/preview/${guideId}`)
+}
+
+// V2: 截图分析 API
+export const screenshotApi = {
+  analyzeWithScreenshot: (request: ScreenshotAnalysisRequest) =>
+    apiClient.post<ScreenshotAnalysisResponse>('/v2/screenshot/analyze', request),
+
+  getGuideScreenshots: (guideId: number) =>
+    apiClient.get(`/v2/screenshot/guide/${guideId}`),
+
+  getScreenshotImage: (screenshotId: number) =>
+    apiClient.get(`/v2/screenshot/image/${screenshotId}`)
 }
