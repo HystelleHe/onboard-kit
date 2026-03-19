@@ -1,5 +1,4 @@
-from typing import Dict, Any, List
-import json
+from typing import Dict, Any
 from app.models.models import Guide as GuideModel
 
 
@@ -12,7 +11,7 @@ class CodeGeneratorService:
 
         Args:
             guide: 引导配置对象
-            format: 输出格式 (html, js, npm, json)
+            format: 输出格式 (html, js, npm)
 
         Returns:
             包含代码和说明的字典
@@ -23,55 +22,13 @@ class CodeGeneratorService:
             return self._generate_js(guide)
         elif format == "npm":
             return self._generate_npm(guide)
-        elif format == "json":
-            return self._generate_json(guide)
         else:
             raise ValueError(f"Unsupported format: {format}")
 
-    def _build_steps_config(self, guide: GuideModel) -> List[Dict]:
-        """构建步骤配置（标准JSON格式）"""
-        steps = sorted(guide.steps, key=lambda s: s.order)
-        steps_config = []
-        for step in steps:
-            steps_config.append({
-                "element": step.element_selector,
-                "popover": {
-                    "title": step.title,
-                    "description": step.description or "",
-                    "side": step.position
-                }
-            })
-        return steps_config
-
-    def _build_onboard_config(self, guide: GuideModel) -> Dict:
-        """构建完整的 OnboardKit 配置对象"""
-        steps = sorted(guide.steps, key=lambda s: s.order)
-        steps_data = []
-        for step in steps:
-            steps_data.append({
-                "order": step.order,
-                "title": step.title,
-                "description": step.description or "",
-                "element_selector": step.element_selector,
-                "position": step.position or "bottom",
-                "config": step.config or {}
-            })
-        
-        return {
-            "version": "1.0",
-            "guide": {
-                "name": guide.name,
-                "description": guide.description or "",
-                "target_url": guide.target_url,
-                "config": guide.config or {}
-            },
-            "steps": steps_data
-        }
-
     def _generate_html(self, guide: GuideModel) -> Dict[str, Any]:
         """生成HTML格式的代码（包含完整的页面和引导脚本）"""
-        steps_config = self._build_steps_config(guide)
-        steps_json = json.dumps(steps_config, indent=8, ensure_ascii=False)
+        steps = sorted(guide.steps, key=lambda s: s.order)
+        steps_js = self._format_steps_for_driver(steps)
 
         code = f"""<!DOCTYPE html>
 <html lang="zh-CN">
@@ -94,7 +51,7 @@ class CodeGeneratorService:
         // 初始化引导
         const driver = window.driver.js.driver({{
             showProgress: true,
-            steps: {steps_json}
+            steps: {steps_js}
         }});
 
         // 启动引导
@@ -121,8 +78,8 @@ class CodeGeneratorService:
 
     def _generate_js(self, guide: GuideModel) -> Dict[str, Any]:
         """生成纯JavaScript代码（可直接嵌入现有页面）"""
-        steps_config = self._build_steps_config(guide)
-        steps_json = json.dumps(steps_config, indent=8, ensure_ascii=False)
+        steps = sorted(guide.steps, key=lambda s: s.order)
+        steps_js = self._format_steps_for_driver(steps)
 
         code = f"""// OnboardKit 引导代码
 // 确保已在页面中引入 Driver.js
@@ -135,7 +92,7 @@ class CodeGeneratorService:
     // 初始化引导
     const driver = window.driver.js.driver({{
         showProgress: true,
-        steps: {steps_json}
+        steps: {steps_js}
     }});
 
     // 启动引导
@@ -161,8 +118,21 @@ class CodeGeneratorService:
 
     def _generate_npm(self, guide: GuideModel) -> Dict[str, Any]:
         """生成NPM包方式的代码（适用于现代前端项目）"""
-        steps_config = self._build_steps_config(guide)
-        steps_json = json.dumps(steps_config, indent=8, ensure_ascii=False)
+        steps = sorted(guide.steps, key=lambda s: s.order)
+        steps_config = []
+
+        for step in steps:
+            steps_config.append({
+                "element": step.element_selector,
+                "popover": {
+                    "title": step.title,
+                    "description": step.description or "",
+                    "side": step.position
+                }
+            })
+
+        import json
+        steps_json = json.dumps(steps_config, indent=2, ensure_ascii=False)
 
         code = f"""// 1. 安装依赖
 // npm install driver.js
@@ -193,29 +163,29 @@ export function initOnboardGuide() {{
 
 React 示例:
 ```jsx
-import {{ useEffect }} from 'react';
-import {{ initOnboardGuide }} from './guide';
+import { useEffect } from 'react';
+import { initOnboardGuide } from './guide';
 
-function App() {{
-  useEffect(() => {{
+function App() {
+  useEffect(() => {
     const guide = initOnboardGuide();
     guide.drive();
-  }}, []);
+  }, []);
 
   return <div>Your App</div>;
-}}
+}
 ```
 
 Vue 3 示例:
 ```vue
 <script setup>
-import {{ onMounted }} from 'vue';
-import {{ initOnboardGuide }} from './guide';
+import { onMounted } from 'vue';
+import { initOnboardGuide } from './guide';
 
-onMounted(() => {{
+onMounted(() => {
   const guide = initOnboardGuide();
   guide.drive();
-}});
+});
 </script>
 ```
 """
@@ -225,32 +195,17 @@ onMounted(() => {{
             "instructions": instructions
         }
 
-    def _generate_json(self, guide: GuideModel) -> Dict[str, Any]:
-        """生成JSON格式的引导配置（用于导入导出）"""
-        config = self._build_onboard_config(guide)
-        json_code = json.dumps(config, indent=2, ensure_ascii=False)
+    def _format_steps_for_driver(self, steps) -> str:
+        """将步骤格式化为Driver.js配置"""
+        steps_list = []
+        for step in steps:
+            steps_list.append(f"""{{
+                element: '{step.element_selector}',
+                popover: {{
+                    title: '{step.title}',
+                    description: '{step.description or ""}',
+                    side: '{step.position}'
+                }}
+            }}""")
 
-        instructions = """
-使用说明：
-
-1. 导入配置：
-   - 在 OnboardKit 中创建新引导时，选择"导入JSON配置"
-   - 粘贴此JSON内容即可恢复完整引导配置
-
-2. 备份配置：
-   - 保存此JSON文件作为引导配置的备份
-   - 可随时重新导入恢复
-
-3. 跨项目迁移：
-   - 将JSON配置分享给其他团队或项目
-   - 对方导入后即可使用相同的引导流程
-
-4. 版本控制：
-   - 将JSON文件提交到Git仓库
-   - 跟踪引导配置的变更历史
-"""
-
-        return {
-            "code": json_code,
-            "instructions": instructions
-        }
+        return "[\n        " + ",\n        ".join(steps_list) + "\n    ]"

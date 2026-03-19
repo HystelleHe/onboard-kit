@@ -1,4 +1,5 @@
 import apiClient from './client'
+import axios, { type AxiosInstance } from 'axios'
 import type {
   LoginCredentials,
   Token,
@@ -8,10 +9,35 @@ import type {
   GuideCreate,
   PageAnalysisRequest,
   PageAnalysisResponse,
+  ScreenshotAnalysisRequest,
+  ScreenshotAnalysisResponse,
   CodeGenerationRequest,
   CodeGenerationResponse,
   PreviewData
 } from '@/types'
+
+// 创建不带 baseURL 的 axios 实例用于 V2 API
+const apiClientV2: AxiosInstance = axios.create({
+  baseURL: '',
+  timeout: 60000,
+  headers: {
+    'Content-Type': 'application/json'
+  }
+})
+
+// 请求拦截器 - 添加 token
+apiClientV2.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('access_token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
+    return config
+  },
+  (error) => {
+    return Promise.reject(error)
+  }
+)
 
 // 认证 API
 export const authApi = {
@@ -57,7 +83,7 @@ export const guideApi = {
     apiClient.delete(`/guides/${guideId}`)
 }
 
-// 页面分析 API
+// 页面分析 API (V1)
 export const pageApi = {
   analyzePage: (request: PageAnalysisRequest) =>
     apiClient.post<PageAnalysisResponse>('/pages/analyze', request),
@@ -67,4 +93,16 @@ export const pageApi = {
 
   previewGuide: (guideId: number) =>
     apiClient.get<PreviewData>(`/pages/preview/${guideId}`)
+}
+
+// V2: 截图分析 API
+export const screenshotApi = {
+  analyzeWithScreenshot: (request: ScreenshotAnalysisRequest) =>
+    apiClientV2.post<ScreenshotAnalysisResponse>(`/v2/screenshot/analyze?url=${encodeURIComponent(request.url)}${request.guide_id ? `&guide_id=${request.guide_id}` : ''}`),
+
+  getGuideScreenshots: (guideId: number) =>
+    apiClientV2.get(`/v2/screenshot/guide/${guideId}`),
+
+  getScreenshotImage: (screenshotId: number) =>
+    apiClientV2.get(`/v2/screenshot/image/${screenshotId}`)
 }

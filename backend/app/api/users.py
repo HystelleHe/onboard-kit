@@ -11,6 +11,14 @@ from app.api.auth import get_current_user
 router = APIRouter()
 
 
+@router.get("/me", response_model=User)
+async def get_current_user_info(
+    current_user: UserModel = Depends(get_current_user)
+):
+    """获取当前登录用户信息"""
+    return current_user
+
+
 @router.get("/", response_model=List[User])
 async def list_users(
     skip: int = 0,
@@ -23,7 +31,18 @@ async def list_users(
     return users
 
 
-@router.get("/{user_id}", response_model=User)
+@router.get("/all", response_model=List[User])
+async def get_all_users(
+    db: AsyncSession = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user)
+):
+    """获取所有用户（避免与/me冲突的替代接口）"""
+    result = await db.execute(select(UserModel))
+    users = result.scalars().all()
+    return users
+
+
+@router.get("/by-id/{user_id}", response_model=User)
 async def get_user(
     user_id: int,
     db: AsyncSession = Depends(get_db),
@@ -36,7 +55,7 @@ async def get_user(
     return user
 
 
-@router.put("/{user_id}", response_model=User)
+@router.put("/by-id/{user_id}", response_model=User)
 async def update_user(
     user_id: int,
     user_in: UserUpdate,

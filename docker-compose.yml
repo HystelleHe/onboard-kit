@@ -7,7 +7,7 @@ services:
     container_name: onboardkit-postgres
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: onboardkit
     volumes:
       - postgres_data:/var/lib/postgresql/data
@@ -44,12 +44,12 @@ services:
     environment:
       POSTGRES_SERVER: postgres
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       POSTGRES_DB: onboardkit
       REDIS_HOST: redis
       REDIS_PORT: 6379
       SECRET_KEY: ${SECRET_KEY:-your-secret-key-change-in-production}
-      BACKEND_CORS_ORIGINS: '["http://localhost:5173","http://localhost"]'
+      BACKEND_CORS_ORIGINS: '["http://106.75.222.205", "http://localhost:5173", "http://localhost"]'
     ports:
       - "8000:8000"
     depends_on:
@@ -82,3 +82,20 @@ volumes:
 networks:
   onboardkit-network:
     driver: bridge
+
+# 数据库健康检查和自动重启配置
+# 如果数据库出现问题，可以运行以下命令重建：
+# docker compose stop postgres
+# docker compose rm -f postgres
+# docker volume rm onboard-kit_postgres_data
+# docker compose up -d postgres
+# docker exec onboardkit-backend python3 -c "
+# import asyncio
+# from app.core.database import engine
+# from app.models.models import Base
+# async def init():
+#     async with engine.begin() as conn:
+#         await conn.run_sync(Base.metadata.create_all)
+#     print(Database initialized)
+# asyncio.run(init())
+# "

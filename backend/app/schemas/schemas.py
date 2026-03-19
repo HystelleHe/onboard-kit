@@ -90,21 +90,51 @@ class PageAnalysisRequest(BaseModel):
     url: str
 
 
+class SuggestedElement(BaseModel):
+    tag: str
+    type: Optional[str] = ""
+    id: Optional[str] = ""
+    class_: Optional[str] = ""
+    text: Optional[str] = ""
+    title: str
+    selector: str
+    rect: Dict[str, int]
+    center: Dict[str, int]
+
+
 class PageAnalysisResponse(BaseModel):
     id: int
     url: str
-    analysis_result: Dict[str, Any]
-    suggested_elements: Optional[List[Dict[str, Any]]]
+    screenshot: Optional[str] = None  # base64 encoded image
+    suggested_elements: List[SuggestedElement] = []
+    analysis_result: Dict[str, Any] = {}
     created_at: datetime
 
     class Config:
         from_attributes = True
 
 
+class ElementFindRequest(BaseModel):
+    url: str
+    x: int
+    y: int
+    width: int
+    height: int
+
+
+class ElementFindResponse(BaseModel):
+    tag: str
+    id: Optional[str] = ""
+    class_: Optional[str] = ""
+    text: Optional[str] = ""
+    selector: str
+    rect: Dict[str, int]
+
+
 # Code Generation Schema
 class CodeGenerationRequest(BaseModel):
     guide_id: int
-    format: str = "html"  # html, js, npm
+    format: str = "html"  # html, js, npm, json
 
 
 class CodeGenerationResponse(BaseModel):

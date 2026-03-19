@@ -9,7 +9,9 @@ from app.schemas.schemas import (
     PageAnalysisRequest,
     PageAnalysisResponse,
     CodeGenerationRequest,
-    CodeGenerationResponse
+    CodeGenerationResponse,
+    ElementFindRequest,
+    ElementFindResponse
 )
 from app.api.auth import get_current_user
 from app.services.page_analyzer import PageAnalyzerService
@@ -26,7 +28,7 @@ async def analyze_page(
     current_user: UserModel = Depends(get_current_user)
 ):
     """
-    分析目标页面，提取DOM结构和建议的引导元素
+    分析目标页面，截图并提取可交互元素
     """
     try:
         # 使用Playwright分析页面
@@ -53,10 +55,47 @@ async def analyze_page(
         await db.commit()
         await db.refresh(db_analysis)
 
-        return db_analysis
+        # 返回结果（包含截图和推荐元素）
+        return {
+            "id": db_analysis.id,
+            "url": db_analysis.url,
+            "screenshot": analysis_result.get("screenshot"),
+            "suggested_elements": analysis_result.get("suggested_elements", []),
+            "analysis_result": analysis_result.get("structure", {}),
+            "created_at": db_analysis.created_at
+        }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to analyze page: {str(e)}")
+
+
+@router.post("/find-element", response_model=ElementFindResponse)
+async def find_element_by_coordinate(
+    request: ElementFindRequest,
+    current_user: UserModel = Depends(get_current_user)
+):
+    """
+    根据坐标查找页面元素
+    """
+    try:
+        analyzer = PageAnalyzerService()
+        element_info = await analyzer.find_element_by_coordinate(
+            request.url, 
+            request.x, 
+            request.y, 
+            request.width, 
+            request.height
+        )
+        
+        if not element_info:
+            raise HTTPException(status_code=404, detail="No element found at the specified coordinates")
+        
+        return element_info
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to find element: {str(e)}")
 
 
 @router.post("/generate-code", response_model=CodeGenerationResponse)
@@ -141,7 +180,8 @@ async def preview_guide(
             "popover": {
                 "title": step.title,
                 "description": step.description or "",
-                "side": step.position
+                "side": step.position or "bottom",
+                "align": "start"
             }
         })
 

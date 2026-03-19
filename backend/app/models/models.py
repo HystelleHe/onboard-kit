@@ -81,3 +81,16 @@ class UsageLog(Base):
 
     # 关系
     user = relationship("User", back_populates="usage_logs")
+
+
+class PageScreenshot(Base):
+    __tablename__ = "page_screenshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    guide_id = Column(Integer, ForeignKey("guides.id"), nullable=True)
+    url = Column(String, nullable=False)
+    screenshot_data = Column(Text, nullable=False)  # base64 encoded
+    width = Column(Integer, nullable=False)
+    height = Column(Integer, nullable=False)
+    suggested_regions = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -6,7 +6,6 @@
       <div class="actions">
         <el-button @click="startGuide" type="primary">开始引导</el-button>
         <el-button @click="showCodeDialog">生成代码</el-button>
-        <el-button @click="downloadLocalPreview" type="success">下载本地预览工具</el-button>
       </div>
     </div>
 
@@ -27,19 +26,18 @@
     <el-dialog
       v-model="codeDialogVisible"
       title="生成代码"
-      width="900px"
+      width="800px"
     >
       <el-tabs v-model="codeFormat">
         <el-tab-pane label="HTML" name="html" />
         <el-tab-pane label="JavaScript" name="js" />
         <el-tab-pane label="NPM" name="npm" />
-        <el-tab-pane label="JSON配置" name="json" />
       </el-tabs>
 
       <div v-if="generatedCode" class="code-section">
         <div class="code-header">
-          <h4>{{ formatTitle }}</h4>
-          <el-button size="small" @click="copyCode" type="primary">复制</el-button>
+          <h4>代码</h4>
+          <el-button size="small" @click="copyCode">复制</el-button>
         </div>
         <pre class="code-block">{{ generatedCode.code }}</pre>
 
@@ -55,7 +53,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { pageApi } from '@/api'
 import type { PreviewData, CodeGenerationResponse } from '@/types'
@@ -71,16 +69,6 @@ const previewIframe = ref<HTMLIFrameElement>()
 const codeDialogVisible = ref(false)
 const codeFormat = ref('html')
 const generatedCode = ref<CodeGenerationResponse | null>(null)
-
-const formatTitle = computed(() => {
-  const titles: Record<string, string> = {
-    html: 'HTML 完整页面代码',
-    js: 'JavaScript 代码片段',
-    npm: 'NPM/ES Module 代码',
-    json: 'OnboardKit JSON 配置'
-  }
-  return titles[codeFormat.value] || '代码'
-})
 
 onMounted(async () => {
   const guideId = Number(route.params.id)
@@ -100,30 +88,27 @@ const loadPreviewData = async (guideId: number) => {
 }
 
 const onIframeLoad = () => {
+  // iframe加载完成后可以注入Driver.js
   console.log('Iframe loaded')
 }
 
 const startGuide = () => {
   if (!previewData.value) return
 
+  // 创建Driver.js实例
   const driverObj = driver({
     showProgress: true,
+    animate: true,
+    overlayOpacity: 0.75,
     steps: previewData.value.steps
   })
 
+  // 启动引导
   driverObj.drive()
 }
 
 const goBack = () => {
   router.back()
-}
-
-const downloadLocalPreview = () => {
-  const link = document.createElement('a')
-  link.href = '/tools/local-preview.html'
-  link.download = 'onboardkit-local-preview.html'
-  link.click()
-  ElMessage.success('本地预览工具下载成功！请双击打开使用。')
 }
 
 const showCodeDialog = async () => {
@@ -215,7 +200,6 @@ const copyCode = () => {
 
 .code-header h4 {
   margin: 0;
-  color: #409eff;
 }
 
 .code-block,
@@ -228,13 +212,6 @@ const copyCode = () => {
   font-size: 13px;
   line-height: 1.5;
   margin: 0 0 20px 0;
-}
-
-.code-block {
-  background: #2d2d2d;
-  color: #f8f8f2;
-  max-height: 400px;
-  overflow-y: auto;
 }
 
 .instructions {
